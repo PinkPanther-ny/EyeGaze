@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # Hyperparameters
     learning_rate = 0.001
-    epochs = 10
+    epochs = 100
 
     T_0 = 10  # Number of epochs in the first restart cycle
     T_mult = 2  # Multiply the restart cycle length by this factor each restart
@@ -46,6 +46,8 @@ if __name__ == '__main__':
     saved_models_dir = 'saved_models'
     os.makedirs(saved_models_dir, exist_ok=True)
 
+
+    best_val_loss = 999999
     # Training and validation loops
     for epoch in range(1, epochs + 1):
 
@@ -77,5 +79,9 @@ if __name__ == '__main__':
                 val_loss += loss_function(predictions, target).item()
 
         val_loss /= len(val_loader)
-        print('\nValidation set: Average loss: {:.4f}\n'.format(val_loss))
+        if val_loss < best_val_loss:
+            print('\nBest validation set: Average loss: {:.4f}\n'.format(val_loss))
+            best_val_loss = val_loss
+            torch.save(model.state_dict(), os.path.join(saved_models_dir, f'best.pth'))
+        print('\nCur best val loss: {}, Validation set: Average loss: {:.4f}\n'.format(best_val_loss, val_loss))
         torch.save(model.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
