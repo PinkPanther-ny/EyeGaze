@@ -154,9 +154,9 @@ if __name__ == '__main__':
                 best_val_epoch = epoch
                 print(f'\nNew best validation set on epoch {best_val_epoch}, '
                       f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
-                torch.save(model.state_dict(), os.path.join(saved_models_dir, f'best.pth'))
+                torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'best.pth'))
 
             print(f'Validation avg loss: {val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels')
             print(f'Best validation set on epoch {best_val_epoch}, '
                   f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
-            torch.save(model.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
+            torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
