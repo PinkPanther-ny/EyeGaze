@@ -37,7 +37,7 @@ def calculate_pixel_distance(avg_mse_loss):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', "--batch_size", default=32, type=int, help="Batch size")
-    parser.add_argument('-e', "--epoch", default=120, type=int, help="Total epochs")
+    parser.add_argument('-e', "--epoch", default=150, type=int, help="Total epochs")
     parser.add_argument('-l', "--lr", default=0.001, type=int, help="Initial learning rate")
     parser.add_argument('-n', "--log_name", default="EyeGaze", type=str, help="Current experiment name")
     args = parser.parse_args()
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     dist.init_process_group(backend='nccl')
     print(f'Using device: {DEVICE}')
 
-    T_0 = 10  # Number of epochs in the first restart cycle (10->30->60->120)
+    T_0 = 10  # Number of epochs in the first restart cycle (10->30->70->150)
     T_mult = 2  # Multiply the restart cycle length by this factor each restart
 
     dataset = GazeDataset(data_path='images', transform=transforms.Compose([
