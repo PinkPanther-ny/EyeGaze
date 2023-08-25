@@ -8,7 +8,7 @@ from model import GazeNet
 
 device = 'cuda'
 # Load the model
-model_path = 'saved_models/epoch_10.pth'
+model_path = 'saved_models/best.pth'
 model = GazeNet().to(device)
 model.load_state_dict(torch.load(model_path))
 model.eval()

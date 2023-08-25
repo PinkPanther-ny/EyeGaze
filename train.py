@@ -48,6 +48,7 @@ if __name__ == '__main__':
 
 
     best_val_loss = 999999
+    best_val_epoch = 0
     # Training and validation loops
     for epoch in range(1, epochs + 1):
 
@@ -80,8 +81,9 @@ if __name__ == '__main__':
 
         val_loss /= len(val_loader)
         if val_loss < best_val_loss:
-            print('\nBest validation set: Average loss: {:.4f}\n'.format(val_loss))
             best_val_loss = val_loss
+            best_val_epoch = epoch
+            print(f'\nBest validation set on epoch {best_val_epoch}: Average loss: {best_val_loss:.4f}\n')
             torch.save(model.state_dict(), os.path.join(saved_models_dir, f'best.pth'))
-        print('\nCur best val loss: {}, Validation set: Average loss: {:.4f}\n'.format(best_val_loss, val_loss))
+        print(f'\nCur best val loss on epoch {best_val_epoch}: {best_val_loss}, Validation set: Average loss: {val_loss:.4f}\n')
         torch.save(model.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
