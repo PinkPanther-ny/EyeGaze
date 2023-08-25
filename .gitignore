@@ -2,8 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
-images/
-saved_models/
+images*/
+saved_models*/
 # C extensions
 *.so
 
