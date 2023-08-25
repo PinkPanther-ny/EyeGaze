@@ -24,6 +24,9 @@ pygame.display.set_caption('Gaze Position Visualization')
 
 # Image transformation pipeline
 transform = transforms.Compose([
+    # Resize the short side to 224 while maintaining aspect ratio
+    transforms.Resize((224, 299)),  # (224/480) * 640 = 298.667
+    transforms.CenterCrop(224),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
