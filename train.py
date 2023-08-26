@@ -9,12 +9,11 @@ import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch.utils.data import DataLoader
-from torch.utils.data import random_split
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
 from tqdm import tqdm
 
+from augmentation import train_aug, val_aug
 from dataset import GazeDataset
 from model import GazeNet
 
@@ -58,17 +57,8 @@ if __name__ == '__main__':
     T_0 = 25  # Number of epochs in the first restart cycle (25->75->175->375)
     T_mult = 2  # Multiply the restart cycle length by this factor each restart
 
-    dataset = GazeDataset(data_path='images', transform=transforms.Compose([
-        # Resize the short side to 224 while maintaining aspect ratio
-        transforms.Resize((224, 299)),  # (224/480) * 640 = 298.667
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ]))
-
-    train_size = int(0.9 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_dataset = GazeDataset(data_path='images', is_train=True, transform=train_aug)
+    val_dataset = GazeDataset(data_path='images', is_train=False, transform=val_aug)
 
     train_sampler = DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8)

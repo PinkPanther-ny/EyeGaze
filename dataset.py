@@ -1,16 +1,32 @@
 import os
+import random
 
 import torch
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, random_split
-from torchvision import transforms
+from torch.utils.data import Dataset, DataLoader
+
+from augmentation import train_aug, val_aug
+
+
+def deterministic_shuffle(lst, seed=0):
+    random.seed(seed)
+    random.shuffle(lst)
+    return lst
 
 
 class GazeDataset(Dataset):
-    def __init__(self, data_path, transform=None):
+    TRAIN_VAL_SPLIT = 0.9
+
+    def __init__(self, data_path, is_train, transform=None):
         self.data_path = data_path
         self.transform = transform
-        self.file_list = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
+        # Shuffling the list deterministically
+        files = deterministic_shuffle(
+            [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))],
+            seed=0
+        )
+        split_pos = int(self.TRAIN_VAL_SPLIT * len(files))
+        self.file_list = files[:split_pos] if is_train else files[split_pos:]
 
     def __len__(self):
         return len(self.file_list)
@@ -23,24 +39,15 @@ class GazeDataset(Dataset):
         image = Image.open(img_path)
 
         if self.transform:
-            image = self.transform(image)
+            image = self.transform(image=image)['image']
 
         return image, ground_truth
 
 
 if __name__ == '__main__':
-    data_transforms = transforms.Compose([
-        transforms.Resize((224, 224)),  # Resize the image
-        transforms.RandomHorizontalFlip(),  # Simple Augmentation
-        transforms.ToTensor(),  # Convert to Tensor
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # Normalization
-    ])
+    train_dataset = GazeDataset(data_path='images', is_train=True, transform=train_aug)
+    val_dataset = GazeDataset(data_path='images', is_train=False, transform=val_aug)
 
-    dataset = GazeDataset(data_path='images', transform=data_transforms)
-
-    train_size = int(0.9 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     print(len(train_dataset), len(val_dataset))
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)

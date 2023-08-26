@@ -4,10 +4,10 @@ import cv2
 import numpy as np
 import pygame
 import torch
-from PIL import Image
 from scipy.stats import multivariate_normal
-from torchvision import transforms
 
+# Image transformation pipeline
+from augmentation import val_aug as transform
 from model import GazeNet
 
 device = 'cuda'
@@ -25,15 +25,6 @@ pygame.init()
 screen_size = (1920, 1080)
 screen = pygame.display.set_mode(screen_size)
 pygame.display.set_caption('Gaze Position Heatmap')
-
-# Image transformation pipeline
-transform = transforms.Compose([
-    # Resize the short side to 224 while maintaining aspect ratio
-    transforms.Resize((224, 299)),  # (224/480) * 640 = 298.667
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
 
 buffer_size = 10  # Keep the last 50 gaze positions
 gaze_buffer = []
@@ -53,9 +44,8 @@ while running:
         break
 
     # Preprocess the frame
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image = Image.fromarray(frame_rgb)
-    input_tensor = transform(image).unsqueeze(0).to(device)
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    input_tensor = transform(image=image)['image'].unsqueeze(0).to(device)
 
     # Perform inference
     with torch.no_grad():
