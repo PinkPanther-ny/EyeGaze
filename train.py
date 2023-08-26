@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', "--batch_size", default=32, type=int, help="Batch size")
     parser.add_argument('-e', "--epoch", default=150, type=int, help="Total epochs")
-    parser.add_argument('-l', "--lr", default=0.001, type=int, help="Initial learning rate")
+    parser.add_argument('-l', "--lr", default=0.001, type=float, help="Initial learning rate")
     parser.add_argument('-n', "--log_name", default="EyeGaze", type=str, help="Current experiment name")
     args = parser.parse_args()
 
