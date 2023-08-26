@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models
-from torchvision.models import ResNet50_Weights
+from torchvision.models import ResNet101_Weights
 
 
 # Define the GazeNet model
 class GazeNet(nn.Module):
     def __init__(self):
         super(GazeNet, self).__init__()
-        self.backbone = torchvision.models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+        self.backbone = torchvision.models.resnet101(weights=ResNet101_Weights.IMAGENET1K_V1)
         self.backbone.fc = nn.Identity()  # Remove the final classification layer
 
         self.fc0 = nn.Linear(2048, 512)

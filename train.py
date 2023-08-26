@@ -55,7 +55,7 @@ if __name__ == '__main__':
     dist.init_process_group(backend='nccl')
     print(f'Using device: {DEVICE}')
 
-    T_0 = 10  # Number of epochs in the first restart cycle (10->30->70->150)
+    T_0 = 25  # Number of epochs in the first restart cycle (25->75->175->375)
     T_mult = 2  # Multiply the restart cycle length by this factor each restart
 
     dataset = GazeDataset(data_path='images', transform=transforms.Compose([
@@ -107,6 +107,7 @@ if __name__ == '__main__':
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=LOCAL_RANK != 0)
         for batch_idx, (data, target) in pbar:
             global_step = epoch * len(train_loader) + batch_idx  # Calculate global step
+            float_epoch_to_int = int((epoch + batch_idx / len(train_loader)) * 1e3)
 
             data, target = data.to(DEVICE), target.to(DEVICE)
             optimizer.zero_grad()
@@ -127,6 +128,10 @@ if __name__ == '__main__':
                 # Log to TensorBoard
                 for key, value in metrics.items():
                     writer.add_scalar(key, value, global_step)
+
+                # Log to TensorBoard
+                for key, value in metrics.items():
+                    writer.add_scalar(key + "_norm_epoch", value, float_epoch_to_int)
 
                 # Update progress bar
                 pbar.set_description(f'Epoch: {epoch}')
