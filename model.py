@@ -30,13 +30,13 @@ class GazeNet(nn.Module):
 
 if __name__ == '__main__':
     # Instantiate the model
-    model = GazeNet()
-
-    dummy_input = torch.rand((32, 3, 480, 640))
+    model = GazeNet().to('cuda')
+    batch = 16
+    dummy_input = torch.rand((batch, 3, 224, 224)).to('cuda')
 
     # Pass the dummy input through the model
     output = model(dummy_input)
 
-    # Verify the output shape is (32, 2)
-    assert output.shape == (32, 2)
-    print("Output shape:", output.shape)  # Output shape: (32, 2)
+    # Verify the output shape is (batch, 2)
+    assert output.shape == (batch, 2)
+    print("Output shape:", output.shape)  # Output shape: (batch, 2)

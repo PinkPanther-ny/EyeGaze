@@ -12,7 +12,7 @@ from model import GazeNet
 
 device = 'cuda'
 # Load the model
-model_path = 'saved_models/best.pth'
+model_path = 'saved_models_hist/resnet101_16k_add_aug.pth'
 model = GazeNet().to(device)
 model.load_state_dict(torch.load(model_path))
 model.eval()
@@ -26,7 +26,7 @@ screen_size = (1920, 1080)
 screen = pygame.display.set_mode(screen_size)
 pygame.display.set_caption('Gaze Position Heatmap')
 
-buffer_size = 10  # Keep the last 50 gaze positions
+buffer_size = 5  # Keep the last 50 gaze positions
 gaze_buffer = []
 gaussian_render_radius = 150
 multivariate_covariance = 1000
