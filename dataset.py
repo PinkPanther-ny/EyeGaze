@@ -1,8 +1,8 @@
+import cv2
 import os
 import random
 
 import torch
-from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
 from augmentation import train_aug, val_aug
@@ -17,7 +17,7 @@ def deterministic_shuffle(lst, seed=0):
 class GazeDataset(Dataset):
     TRAIN_VAL_SPLIT = 0.9
 
-    def __init__(self, data_path, is_train, transform=None):
+    def __init__(self, data_path, is_train, transform):
         self.data_path = data_path
         self.transform = transform
         # Shuffling the list deterministically
@@ -36,10 +36,10 @@ class GazeDataset(Dataset):
         x, y = map(float, file_name.split('_')[:2])
         ground_truth = torch.tensor([x, y], dtype=torch.float)
         img_path = os.path.join(self.data_path, file_name)
-        image = Image.open(img_path)
+        image = cv2.imread(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        if self.transform:
-            image = self.transform(image=image)['image']
+        image = self.transform(image=image)['image']
 
         return image, ground_truth
 
