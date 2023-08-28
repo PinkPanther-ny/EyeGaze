@@ -90,8 +90,12 @@ if __name__ == '__main__':
         # Initialize the TensorBoard writer
         writer = SummaryWriter(log_dir=f'log/{args.log_name}')
 
+    model.module.set_freeze(freeze=True)
     # Training and validation loops
     for epoch in range(epochs):
+
+        if epoch == 25:
+            model.module.set_freeze(freeze=False)
 
         model.train()
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=LOCAL_RANK != 0)

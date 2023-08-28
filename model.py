@@ -3,9 +3,9 @@ import torch.onnx
 import torchvision.models
 from torchvision.models import ResNet101_Weights
 
-def freeze_module(module):
+def freeze_module(module, freeze=True):
     for param in module.parameters():
-        param.requires_grad = False
+        param.requires_grad = not freeze
 
 # Define the GazeNet model
 class GazeNet(nn.Module):
@@ -31,17 +31,17 @@ class GazeNet(nn.Module):
         x = self.head(x)
         return x
 
-    def freeze(self):
+    def set_freeze(self, freeze=True):
         for i, child in enumerate(self.backbone.children(), 0):
             # Freeze conv5
             if i >= 7:
-                freeze_module(child)
+                freeze_module(child, freeze=freeze)
 
             # Freeze part of conv4
             if i == 6:
                 for j, c in enumerate(child.children(), 0):
                     if j > 16:
-                        freeze_module(c)
+                        freeze_module(c, freeze=freeze)
 
 
 
