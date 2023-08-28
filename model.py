@@ -1,9 +1,11 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.onnx
 import torchvision.models
 from torchvision.models import ResNet101_Weights
 
+def freeze_module(module):
+    for param in module.parameters():
+        param.requires_grad = False
 
 # Define the GazeNet model
 class GazeNet(nn.Module):
@@ -12,20 +14,35 @@ class GazeNet(nn.Module):
         self.backbone = torchvision.models.resnet101(weights=ResNet101_Weights.IMAGENET1K_V1)
         self.backbone.fc = nn.Identity()  # Remove the final classification layer
 
-        self.fc0 = nn.Linear(2048, 512)
-        self.fc1 = nn.Linear(512, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, 32)
-        self.fc4 = nn.Linear(32, 2)
+        self.head = nn.Sequential(
+            nn.Linear(2048, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 32),
+            nn.ReLU(),
+            nn.Linear(32, 2)
+        )
 
     def forward(self, x):
         x = self.backbone(x)
-        x = F.relu(self.fc0(x))
-        x = self.fc1(x)
-        x = self.fc2(x)
-        x = self.fc3(x)
-        x = self.fc4(x)
+        x = self.head(x)
         return x
+
+    def freeze(self):
+        for i, child in enumerate(self.backbone.children(), 0):
+            # Freeze conv5
+            if i >= 7:
+                freeze_module(child)
+
+            # Freeze part of conv4
+            if i == 6:
+                for j, c in enumerate(child.children(), 0):
+                    if j > 16:
+                        freeze_module(c)
+
 
 
 if __name__ == '__main__':
@@ -42,8 +59,6 @@ if __name__ == '__main__':
     # Verify the output shape is (batch, 2)
     assert output.shape == (batch, 2)
     print("Output shape:", output.shape)  # Output shape: (batch, 2)
-
-    import torch.onnx
 
     # Export the model
     torch.onnx.export(model,  # model being run
