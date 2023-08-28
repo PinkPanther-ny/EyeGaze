@@ -67,10 +67,13 @@ if __name__ == '__main__':
 
     # Model, optimizer, and loss function
     model = GazeNet()
+    # model.load_state_dict(torch.load('saved_models_pretrain/pretrain_freeze_ep24.pth'))
+    # for param in model.parameters():
+    #     param.requires_grad = True
 
     # Wrap our model with DDP
     model.to(DEVICE)
-    model = DDP(model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK)
+    model = DDP(model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK, find_unused_parameters=False)
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     loss_function = nn.MSELoss()
@@ -90,12 +93,12 @@ if __name__ == '__main__':
         # Initialize the TensorBoard writer
         writer = SummaryWriter(log_dir=f'log/{args.log_name}')
 
-    model.module.set_freeze(freeze=True)
+    # model.module.set_freeze(freeze=True)
     # Training and validation loops
     for epoch in range(epochs):
 
-        if epoch == 25:
-            model.module.set_freeze(freeze=False)
+        # if epoch == 25:
+        #     model.module.set_freeze(freeze=False)
 
         model.train()
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=LOCAL_RANK != 0)

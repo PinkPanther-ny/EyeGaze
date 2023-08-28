@@ -4,6 +4,7 @@ import torchvision.models
 from torchvision.models import ResNet101_Weights
 
 def freeze_module(module, freeze=True):
+    print(f"{'Freeze' if freeze else 'Unfreeze'}: {module}")
     for param in module.parameters():
         param.requires_grad = not freeze
 
@@ -34,13 +35,13 @@ class GazeNet(nn.Module):
     def set_freeze(self, freeze=True):
         for i, child in enumerate(self.backbone.children(), 0):
             # Freeze conv5
-            if i >= 7:
+            if i < 6:
                 freeze_module(child, freeze=freeze)
 
             # Freeze part of conv4
             if i == 6:
                 for j, c in enumerate(child.children(), 0):
-                    if j > 16:
+                    if j < 16:
                         freeze_module(c, freeze=freeze)
 
 
