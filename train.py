@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from augmentation import train_aug, val_aug
 from dataset import GazeDataset
-from model import GazeNet
+from vit import GazeNet
 
 
 def calculate_pixel_distance(avg_mse_loss):
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     dist.init_process_group(backend='nccl')
     print(f'Using device: {DEVICE}')
 
-    T_0 = 25  # Number of epochs in the first restart cycle (25->75->175->375)
+    T_0 = 40  # Number of epochs in the first restart cycle (40->120->280->600)
     T_mult = 2  # Multiply the restart cycle length by this factor each restart
 
     train_dataset = GazeDataset(data_path='images', is_train=True, transform=train_aug)
@@ -67,9 +67,9 @@ if __name__ == '__main__':
 
     # Model, optimizer, and loss function
     model = GazeNet()
-    # model.load_state_dict(torch.load('saved_models_pretrain/pretrain_freeze_ep24.pth'))
-    # for param in model.parameters():
-    #     param.requires_grad = True
+    model.load_state_dict(torch.load('saved_models_pretrain/vit_freeze_epoch_24.pth'))
+    for param in model.parameters():
+        param.requires_grad = True
 
     # Wrap our model with DDP
     model.to(DEVICE)
@@ -161,4 +161,4 @@ if __name__ == '__main__':
             print(f'Validation avg loss: {val_loss:.4f} | {calculate_pixel_distance(val_loss):.2f} pixels')
             print(f'Best validation set on epoch {best_val_epoch}, '
                   f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
-            torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
+            # torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
