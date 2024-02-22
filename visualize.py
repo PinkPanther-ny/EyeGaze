@@ -8,11 +8,11 @@ from scipy.stats import multivariate_normal
 
 # Image transformation pipeline
 from augmentation import val_aug as transform
-from model import GazeNet
+from vit import GazeNet
 
 device = 'cuda'
 # Load the model
-model_path = 'saved_models_hist/resnet101_16k_add_aug.pth'
+model_path = 'saved_models_hist/vitb16_20k_224_full_b48_40cyc_large_lr.pth'
 model = GazeNet().to(device)
 model.load_state_dict(torch.load(model_path))
 model.eval()
@@ -26,10 +26,10 @@ screen_size = (1920, 1080)
 screen = pygame.display.set_mode(screen_size)
 pygame.display.set_caption('Gaze Position Heatmap')
 
-buffer_size = 5  # Keep the last 50 gaze positions
+buffer_size = 10  # Keep the last 50 gaze positions
 gaze_buffer = []
-gaussian_render_radius = 150
-multivariate_covariance = 1000
+gaussian_render_radius = 160
+multivariate_covariance = 1500
 
 # Initialize an array for the heat map, flipped to (height, width)
 heat_map_array = np.zeros((screen_size[1], screen_size[0]))
