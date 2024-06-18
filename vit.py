@@ -23,7 +23,7 @@ class GazeNet(nn.Module):
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            # nn.Dropout(0.2),
             nn.Linear(128, 32),
             nn.BatchNorm1d(32),
             nn.ReLU(),
