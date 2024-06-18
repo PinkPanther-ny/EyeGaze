@@ -1,7 +1,7 @@
 import argparse
 import math
 import os
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6,7"
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -36,8 +36,8 @@ def calculate_pixel_distance(avg_mse_loss):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', "--batch_size", default=64, type=int, help="Batch size")
-    parser.add_argument('-e', "--epoch", default=375, type=int, help="Total epochs")
-    parser.add_argument('-l', "--lr", default=0.001, type=float, help="Initial learning rate")
+    parser.add_argument('-e', "--epoch", default=120, type=int, help="Total epochs")
+    parser.add_argument('-l', "--lr", default=1e-4, type=float, help="Initial learning rate")
     parser.add_argument('-n', "--log_name", default="EyeGaze", type=str, help="Current experiment name")
     args = parser.parse_args()
 
@@ -47,18 +47,17 @@ if __name__ == '__main__':
     epochs = args.epoch
 
     # DDP backend initialization
-    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [0, 1, 2]))
     LOCAL_RANK = int(os.environ["LOCAL_RANK"])
     DEVICE = torch.device("cuda", LOCAL_RANK)
     torch.cuda.set_device(LOCAL_RANK)
     dist.init_process_group(backend='nccl')
     print(f'Using device: {DEVICE}')
 
-    T_0 = 40  # Number of epochs in the first restart cycle (40->120->280->600)
+    T_0 = 120  # Number of epochs in the first restart cycle (40->120->280->600)
     T_mult = 2  # Multiply the restart cycle length by this factor each restart
 
-    train_dataset = GazeDataset(data_path='images', is_train=True, transform=train_aug)
-    val_dataset = GazeDataset(data_path='images', is_train=False, transform=val_aug)
+    train_dataset = GazeDataset(data_path='images/train', transform=train_aug)
+    val_dataset = GazeDataset(data_path='images/val', transform=val_aug)
 
     train_sampler = DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8)
@@ -67,8 +66,8 @@ if __name__ == '__main__':
 
     # Model, optimizer, and loss function
     model = GazeNet()
-    model.load_state_dict(torch.load('saved_models_pretrain/vit_freeze_epoch_24.pth'))
-    for param in model.parameters():
+    model.load_state_dict(torch.load('saved_models_pretrain/vit_backbone_freezed_train_head_8v100_116outof120ep_newdata__256.pth'))
+    for param in model.backbone.parameters():
         param.requires_grad = True
 
     # Wrap our model with DDP
@@ -96,10 +95,6 @@ if __name__ == '__main__':
     # model.module.set_freeze(freeze=True)
     # Training and validation loops
     for epoch in range(epochs):
-
-        # if epoch == 25:
-        #     model.module.set_freeze(freeze=False)
-
         model.train()
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=LOCAL_RANK != 0)
         for batch_idx, (data, target) in pbar:
@@ -135,6 +130,8 @@ if __name__ == '__main__':
                 pbar.set_postfix({key.lower().replace(' ', '_'): f'{value:.6f}' for key, value in metrics.items()})
 
         if LOCAL_RANK == 0:
+            # if epoch%5 == 0 or epoch > 80:
+                
             model.eval()
             val_loss = 0
             with torch.no_grad():
