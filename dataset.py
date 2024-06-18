@@ -1,6 +1,5 @@
 import cv2
 import os
-import random
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -8,25 +7,14 @@ from torch.utils.data import Dataset, DataLoader
 from augmentation import train_aug, val_aug
 
 
-def deterministic_shuffle(lst, seed=0):
-    random.seed(seed)
-    random.shuffle(lst)
-    return lst
-
-
 class GazeDataset(Dataset):
-    TRAIN_VAL_SPLIT = 0.9
-
-    def __init__(self, data_path, is_train, transform):
+    def __init__(self, data_path, transform):
         self.data_path = data_path
         self.transform = transform
-        # Shuffling the list deterministically
-        files = deterministic_shuffle(
-            [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))],
-            seed=0
-        )
-        split_pos = int(self.TRAIN_VAL_SPLIT * len(files))
-        self.file_list = files[:split_pos] if is_train else files[split_pos:]
+        # Read the list of files
+        self.file_list = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
+        
+        print(f"GazeDataset Init! {self.data_path} {len(self.file_list)}")
 
     def __len__(self):
         return len(self.file_list)
@@ -45,8 +33,8 @@ class GazeDataset(Dataset):
 
 
 if __name__ == '__main__':
-    train_dataset = GazeDataset(data_path='images', is_train=True, transform=train_aug)
-    val_dataset = GazeDataset(data_path='images', is_train=False, transform=val_aug)
+    train_dataset = GazeDataset(data_path='images/train', transform=train_aug)
+    val_dataset = GazeDataset(data_path='images/val', transform=val_aug)
 
     print(len(train_dataset), len(val_dataset))
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
