@@ -7,6 +7,11 @@ saved_models*/
 log*/
 # C extensions
 *.so
+deprecated/
+*.onnx
+*.trt
+*.pth
+*.pt
 
 # Distribution / packaging
 .Python
