@@ -12,7 +12,7 @@ deprecated/
 *.trt
 *.pth
 *.pt
-
+*.zip
 # Distribution / packaging
 .Python
 build/
