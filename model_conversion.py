@@ -9,6 +9,8 @@ import pycuda.autoinit
 import tensorrt as trt
 from vit import GazeNet
 
+from config import TARGET_SIZE
+
 def export_to_onnx(model, dummy_input, onnx_file_path):
     torch.onnx.export(
         model,
@@ -46,7 +48,7 @@ def build_trt_engine(onnx_file_path, engine_file_path):
 
         # Create optimization profile
         profile = builder.create_optimization_profile()
-        profile.set_shape('input', (1, 3, 384, 384), (1, 3, 384, 384), (1, 3, 384, 384))
+        profile.set_shape('input', (1, 3, TARGET_SIZE, TARGET_SIZE), (1, 3, TARGET_SIZE, TARGET_SIZE), (1, 3, TARGET_SIZE, TARGET_SIZE))
         config.add_optimization_profile(profile)
 
         # Build the engine
@@ -73,7 +75,7 @@ def convert_model(choice):
     model.eval()
 
     # Create a dummy input for model tracing
-    dummy_input = torch.rand((1, 3, 384, 384), dtype=torch.float32).to('cuda')
+    dummy_input = torch.rand((1, 3, TARGET_SIZE, TARGET_SIZE), dtype=torch.float32).to('cuda')
 
     if choice == '1':
         # Export the model to ONNX

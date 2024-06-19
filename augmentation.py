@@ -12,7 +12,7 @@ from albumentations import (
 from albumentations.pytorch import ToTensorV2
 
 ORIGINAL_SIZE = 480, 640
-TARGET_SIZE = 384
+from config import TARGET_SIZE
 
 train_aug = Compose(
     [
