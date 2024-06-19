@@ -5,20 +5,15 @@ import keyboard
 import numpy as np
 import pyautogui
 import pygame
-import torch
 from scipy.stats import multivariate_normal
+
+from infer_backend import initialize_backend
 
 # Image transformation pipeline
 from augmentation import val_aug as transform
-from vit import GazeNet
 
-device = 'cuda'
-# Load the model
-# model_path = 'saved_models_hist/vit_backbone_freezed_train_head_8v100_116outof120ep_newdata__256.pth'
-model_path = 'saved_models_hist/122_new.pth'
-model = GazeNet().to(device)
-model.load_state_dict(torch.load(model_path))
-model.eval()
+model_path = r"D:\2023\EyeGaze\gazenet.pt"
+backend = initialize_backend(model_path)
 
 # Open camera 0
 cap = cv2.VideoCapture(0)
@@ -48,16 +43,12 @@ while running:
         print('Failed to capture frame')
         break
 
-    start_time = time.time()  # Start timer
-
-    # Preprocess the frame
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    input_tensor = transform(image=image)['image'].unsqueeze(0).to(device)
+    input_tensor = transform(image=image)['image'].unsqueeze(0)
 
-    # Perform inference
-    with torch.no_grad():
-        prediction = model(input_tensor).cpu().numpy()[0]
-
+    start_time = time.time()  # Start timer
+    # Perform inference using the initialized backend
+    prediction = backend.inference(input_tensor)
     end_time = time.time()  # End timer
     inference_time = (end_time - start_time) * 1000  # Convert to milliseconds
 
