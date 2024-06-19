@@ -35,28 +35,3 @@ class GazeNet(nn.Module):
         x = self.backbone(x)
         x = self.head(x)
         return x
-
-
-if __name__ == '__main__':
-    model_path = 'saved_models_hist/122_new.pth'
-    # Instantiate the model
-    model = GazeNet().to('cuda')
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-    print(model)
-    batch = 1
-    dummy_input = torch.rand((batch, 3, 384, 384), dtype=torch.float32).to('cuda')
-
-    # Export the model to ONNX
-    torch.onnx.export(
-        model,
-        dummy_input,
-        "gazenet.onnx",
-        export_params=True,
-        opset_version=17,
-        do_constant_folding=True,
-        input_names=['input'],
-        output_names=['output'],
-        dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
-    )
-    print("Model has been converted to ONNX")
