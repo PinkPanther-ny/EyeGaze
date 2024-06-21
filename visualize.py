@@ -1,13 +1,13 @@
 import random
 import time
 import cv2
-import keyboard
 import numpy as np
-import pyautogui
 import pygame
 from scipy.stats import multivariate_normal
 
 from infer_backend import initialize_backend
+from camera import CameraCaptureThread
+from mouse_controller import MouseControllerThread
 
 # Image transformation pipeline
 from augmentation import val_aug as transform
@@ -15,8 +15,11 @@ from augmentation import val_aug as transform
 model_path = r"saved_models_hist\93pixel_vit_with_120ep_head_25502data_107ep.trt"
 backend = initialize_backend(model_path)
 
-# Open camera 0
-cap = cv2.VideoCapture(0)
+camera_thread = CameraCaptureThread()
+camera_thread.start()
+
+mouse_controller = MouseControllerThread()
+mouse_controller.start()
 
 # Prepare Pygame window
 pygame.init()
@@ -40,11 +43,10 @@ frame_times = []  # To store the last 10 frame times
 running = True
 while running:
     loop_start_time = time.time()  # Start timer for the loop iteration
-
-    ret, frame = cap.read()
-    if not ret:
+    frame = camera_thread.read()
+    if frame is None:
         print('Failed to capture frame')
-        break
+        continue
 
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     input_tensor = transform(image=image)['image'].unsqueeze(0)
@@ -65,7 +67,7 @@ while running:
 
     # Map the normalized gaze position to screen coordinates
     gaze_x, gaze_y = (int(prediction[0] * screen_size[0]), int(prediction[1] * screen_size[1]))
-
+    mouse_controller.update_gaze(gaze_x, gaze_y)
     # Append gaze position to buffer and trim if necessary
     gaze_buffer.append((gaze_x, gaze_y))
     if len(gaze_buffer) > buffer_size:
@@ -118,15 +120,13 @@ while running:
 
     avg_frame_time = sum(frame_times) / len(frame_times)
     fps = 1 / avg_frame_time
+    print(f'FPS: {fps:.2f}, Avg Inference Time: {avg_inference_time:.2f} ms')
 
     # Display FPS on the screen
     fps_surface = font.render(f'FPS: {fps:.2f}', True, (255, 255, 255))
     screen.blit(fps_surface, (10, 50))
 
     pygame.display.flip()
-
-    if keyboard.is_pressed('LEFT ALT'):
-        pyautogui.moveTo(*np.mean(np.array(gaze_buffer), axis=0), duration=0.1)
 
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -136,5 +136,10 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-cap.release()
+# Stop camera capture thread and mouse controller thread
+camera_thread.stop()
+camera_thread.join()
+mouse_controller.stop()
+mouse_controller.join()
+
 pygame.quit()
