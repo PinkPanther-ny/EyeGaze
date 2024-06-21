@@ -33,6 +33,10 @@ def calculate_pixel_distance(avg_mse_loss):
 
     return avg_pixel_distance
 
+def gather_and_calculate_mean(val_loss, world_size):
+    gathered_losses = [torch.zeros(1).to(DEVICE) for _ in range(world_size)]
+    dist.all_gather(gathered_losses, val_loss)
+    return sum(gathered_losses).item() / world_size
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -63,7 +67,8 @@ if __name__ == '__main__':
     train_sampler = DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8)
 
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8)
+    val_sampler = DistributedSampler(val_dataset)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=8, shuffle=False)
 
     # Model, optimizer, and loss function
     model = GazeNet()
@@ -135,34 +140,35 @@ if __name__ == '__main__':
                 pbar.set_description(f'Epoch: {epoch}')
                 pbar.set_postfix({key.lower().replace(' ', '_'): f'{value:.6f}' for key, value in metrics.items()})
 
-        if LOCAL_RANK == 0:
-            # if epoch%5 == 0 or epoch > 80:
-                
-            model.eval()
-            val_loss = 0
-            with torch.no_grad():
-                for data, target in val_loader:
-                    data, target = data.to(DEVICE), target.to(DEVICE)
-                    with autocast():  # 在验证时也使用autocast
-                        predictions = model(data)
-                        val_loss += loss_function(predictions, target).item()
+        # Validation loop
+        model.eval()
+        val_loss = torch.zeros(1).to(DEVICE)
+        with torch.no_grad():
+            for data, target in val_loader:
+                data, target = data.to(DEVICE), target.to(DEVICE)
+                with autocast():  # 在验证时也使用autocast
+                    predictions = model(data)
+                    val_loss += loss_function(predictions, target).item()
 
-            val_loss /= len(val_loader)
+        val_loss /= len(val_loader)
+        mean_val_loss = gather_and_calculate_mean(val_loss, dist.get_world_size())
+
+        if LOCAL_RANK == 0:
             metrics = {
-                'Val/Loss': val_loss,
-                'Val/Pixel dist': calculate_pixel_distance(val_loss),
+                'Val/Loss': mean_val_loss,
+                'Val/Pixel dist': calculate_pixel_distance(mean_val_loss),
             }
             for key, value in metrics.items():
                 writer.add_scalar(key, value, epoch)
 
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
+            if mean_val_loss < best_val_loss:
+                best_val_loss = mean_val_loss
                 best_val_epoch = epoch
                 print(f'\nNew best validation set on epoch {best_val_epoch}, '
                       f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
                 torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'best.pth'))
 
-            print(f'Validation avg loss: {val_loss:.4f} | {calculate_pixel_distance(val_loss):.2f} pixels')
+            print(f'Validation avg loss: {mean_val_loss:.4f} | {calculate_pixel_distance(mean_val_loss):.2f} pixels')
             print(f'Best validation set on epoch {best_val_epoch}, '
                   f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
             # torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))
