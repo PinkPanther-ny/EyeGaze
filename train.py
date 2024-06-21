@@ -40,16 +40,20 @@ def gather_and_calculate_mean(val_loss, world_size):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-b', "--batch_size", default=256, type=int, help="Batch size")
+    parser.add_argument('-b', "--batch_size", default=96, type=int, help="Batch size")
     parser.add_argument('-e', "--epoch", default=160, type=int, help="Total epochs")
-    parser.add_argument('-l', "--lr", default=1e-3, type=float, help="Initial learning rate")
+    parser.add_argument('-l', "--lr", default=1e-4, type=float, help="Initial learning rate")
     parser.add_argument('-n', "--log_name", default="EyeGaze", type=str, help="Current experiment name")
+    parser.add_argument('-s', "--state_dict", default="", type=str, help="Path to the state dictionary to load")
+    parser.add_argument('-f', "--freeze_backbone", default=False, action='store_true', help="Whether to freeze the backbone")
     args = parser.parse_args()
 
     # Hyperparameters
     batch_size = args.batch_size
     learning_rate = args.lr
     epochs = args.epoch
+    state_dict_path = args.state_dict
+    freeze_backbone = args.freeze_backbone
 
     # DDP backend initialization
     LOCAL_RANK = int(os.environ["LOCAL_RANK"])
@@ -72,9 +76,15 @@ if __name__ == '__main__':
 
     # Model, optimizer, and loss function
     model = GazeNet()
-    # model.load_state_dict(torch.load('saved_models_pretrain/vit_backbone_freezed_train_head_8v100_116outof120ep_newdata__256.pth'))
-    for param in model.backbone.parameters():
-        param.requires_grad = False
+    if state_dict_path:
+        model.load_state_dict(torch.load(state_dict_path))
+
+    if freeze_backbone:
+        for param in model.backbone.parameters():
+            param.requires_grad = False
+    else:
+        for param in model.backbone.parameters():
+            param.requires_grad = True
 
     # Wrap our model with DDP
     model.to(DEVICE)
@@ -84,7 +94,7 @@ if __name__ == '__main__':
     loss_function = nn.MSELoss()
 
     # Create a learning rate scheduler
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=T_0, T_mult=T_mult)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=T_0, T_mult=T_mult, eta_min=1e-5)
 
     # Create directory for saving models if it doesn't exist
     saved_models_dir = 'saved_models'
