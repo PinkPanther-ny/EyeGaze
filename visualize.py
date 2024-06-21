@@ -1,8 +1,13 @@
+# Configuration flag to toggle Pygame drawing
+ENABLE_PYGAME_DRAWING = False
+
 import random
 import time
 import cv2
+import keyboard
 import numpy as np
-import pygame
+if ENABLE_PYGAME_DRAWING:
+    import pygame
 from scipy.stats import multivariate_normal
 
 from infer_backend import initialize_backend
@@ -21,11 +26,13 @@ camera_thread.start()
 mouse_controller = MouseControllerThread()
 mouse_controller.start()
 
-# Prepare Pygame window
-pygame.init()
 screen_size = (1920, 1080)
-screen = pygame.display.set_mode(screen_size)
-pygame.display.set_caption('Gaze Position Heatmap')
+
+if ENABLE_PYGAME_DRAWING:
+    # Prepare Pygame window
+    pygame.init()
+    screen = pygame.display.set_mode(screen_size)
+    pygame.display.set_caption('Gaze Position Heatmap')
 
 buffer_size = 6  # Keep the last n gaze positions
 gaze_buffer = []
@@ -73,43 +80,44 @@ while running:
     if len(gaze_buffer) > buffer_size:
         gaze_buffer.pop(0)
 
-    # Reset the heat_map_array
-    heat_map_array.fill(0)
+    if ENABLE_PYGAME_DRAWING:
+        # Reset the heat_map_array
+        heat_map_array.fill(0)
 
-    # Generate heat map by overlaying Gaussian
-    for gx, gy in gaze_buffer:
-        x_min, x_max = max(0, gx - gaussian_render_radius), min(screen_size[0], gx + gaussian_render_radius)
-        y_min, y_max = max(0, gy - gaussian_render_radius), min(screen_size[1], gy + gaussian_render_radius)
+        # Generate heat map by overlaying Gaussian
+        for gx, gy in gaze_buffer:
+            x_min, x_max = max(0, gx - gaussian_render_radius), min(screen_size[0], gx + gaussian_render_radius)
+            y_min, y_max = max(0, gy - gaussian_render_radius), min(screen_size[1], gy + gaussian_render_radius)
 
-        # Check for valid dimensions
-        if x_min >= x_max or y_min >= y_max:
-            continue
+            # Check for valid dimensions
+            if x_min >= x_max or y_min >= y_max:
+                continue
 
-        x, y = np.mgrid[x_min:x_max, y_min:y_max]
+            x, y = np.mgrid[x_min:x_max, y_min:y_max]
 
-        pos = np.dstack((x, y))
-        rv = multivariate_normal([gx, gy], [[multivariate_covariance, 0], [0, multivariate_covariance]])
+            pos = np.dstack((x, y))
+            rv = multivariate_normal([gx, gy], [[multivariate_covariance, 0], [0, multivariate_covariance]])
 
-        clipped_heatmap = rv.pdf(pos)
-        heat_map_array[y_min:y_max, x_min:x_max] += clipped_heatmap.T  # Transposed to match shape
+            clipped_heatmap = rv.pdf(pos)
+            heat_map_array[y_min:y_max, x_min:x_max] += clipped_heatmap.T  # Transposed to match shape
 
-    # Normalize heat_map_array for visualization
-    max_value = heat_map_array.max()
-    if max_value > 0:  # or np.isfinite(max_value) if you want to check for NaN as well
-        heat_map_normalized = (heat_map_array / max_value * 255).astype(np.uint8)
-    else:
-        heat_map_normalized = np.zeros_like(heat_map_array).astype(np.uint8)
+        # Normalize heat_map_array for visualization
+        max_value = heat_map_array.max()
+        if max_value > 0:  # or np.isfinite(max_value) if you want to check for NaN as well
+            heat_map_normalized = (heat_map_array / max_value * 255).astype(np.uint8)
+        else:
+            heat_map_normalized = np.zeros_like(heat_map_array).astype(np.uint8)
 
-    heat_map_colored = cv2.applyColorMap(heat_map_normalized, current_colormap)
+        heat_map_colored = cv2.applyColorMap(heat_map_normalized, current_colormap)
 
-    # Create a Pygame surface from the heatmap and display
-    heat_map_surface = pygame.surfarray.make_surface(np.transpose(heat_map_colored, (1, 0, 2)))
-    screen.blit(heat_map_surface, (0, 0))
+        # Create a Pygame surface from the heatmap and display
+        heat_map_surface = pygame.surfarray.make_surface(np.transpose(heat_map_colored, (1, 0, 2)))
+        screen.blit(heat_map_surface, (0, 0))
 
-    # Display average inference time on the screen
-    font = pygame.font.SysFont('Arial', 30)
-    text_surface = font.render(f'Avg Inference Time: {avg_inference_time:.2f} ms', True, (255, 255, 255))
-    screen.blit(text_surface, (10, 10))
+        # Display average inference time on the screen
+        font = pygame.font.SysFont('Arial', 30)
+        text_surface = font.render(f'Avg Inference Time: {avg_inference_time:.2f} ms', True, (255, 255, 255))
+        screen.blit(text_surface, (10, 10))
 
     # Calculate FPS
     loop_end_time = time.time()  # End timer for the loop iteration
@@ -123,17 +131,22 @@ while running:
     print(f'FPS: {fps:.2f}, Avg Inference Time: {avg_inference_time:.2f} ms')
 
     # Display FPS on the screen
-    fps_surface = font.render(f'FPS: {fps:.2f}', True, (255, 255, 255))
-    screen.blit(fps_surface, (10, 50))
+    if ENABLE_PYGAME_DRAWING:
+        fps_surface = font.render(f'FPS: {fps:.2f}', True, (255, 255, 255))
+        screen.blit(fps_surface, (10, 50))
 
-    pygame.display.flip()
+        pygame.display.flip()
 
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            current_colormap = random.choice(colormap_list)
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            running = False
-        if event.type == pygame.QUIT:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                current_colormap = random.choice(colormap_list)
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                running = False
+            if event.type == pygame.QUIT:
+                running = False
+    else:
+        # Handle input for non-Pygame version
+        if keyboard.is_pressed('ESC'):
             running = False
 
 # Stop camera capture thread and mouse controller thread
@@ -142,4 +155,5 @@ camera_thread.join()
 mouse_controller.stop()
 mouse_controller.join()
 
-pygame.quit()
+if ENABLE_PYGAME_DRAWING:
+    pygame.quit()
