@@ -32,7 +32,6 @@ class GazeNet(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
-        print(x.shape)
         x = self.head(x)
         return x
 
@@ -66,6 +65,5 @@ class GazeNetL(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
-        print(x.shape)
         x = self.head(x)
         return x
