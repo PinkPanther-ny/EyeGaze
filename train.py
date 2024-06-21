@@ -17,6 +17,7 @@ from augmentation import train_aug, val_aug
 from dataset import GazeDataset
 from vit import GazeNet
 
+from torch.cuda.amp import GradScaler, autocast  # 导入混合精度训练的相关模块
 
 def calculate_pixel_distance(avg_mse_loss):
     # Convert average MSE loss to Euclidean distance in normalized coordinates
@@ -92,7 +93,8 @@ if __name__ == '__main__':
         # Initialize the TensorBoard writer
         writer = SummaryWriter(log_dir=f'log/{args.log_name}')
 
-    # model.module.set_freeze(freeze=True)
+    scaler = GradScaler()  # 初始化GradScaler
+
     # Training and validation loops
     for epoch in range(epochs):
         model.train()
@@ -103,11 +105,15 @@ if __name__ == '__main__':
 
             data, target = data.to(DEVICE), target.to(DEVICE)
             optimizer.zero_grad()
-            predictions = model(data)
-            loss = loss_function(predictions, target)
-            loss.backward()
 
-            optimizer.step()
+            with autocast():  # 使用autocast进行混合精度训练
+                predictions = model(data)
+                loss = loss_function(predictions, target)
+
+            scaler.scale(loss).backward()  # 使用scaler.scale
+            scaler.step(optimizer)  # 使用scaler.step
+            scaler.update()  # 更新scaler
+
             scheduler.step(epoch + batch_idx / len(train_loader))
 
             if LOCAL_RANK == 0:
@@ -137,8 +143,9 @@ if __name__ == '__main__':
             with torch.no_grad():
                 for data, target in val_loader:
                     data, target = data.to(DEVICE), target.to(DEVICE)
-                    predictions = model(data)
-                    val_loss += loss_function(predictions, target).item()
+                    with autocast():  # 在验证时也使用autocast
+                        predictions = model(data)
+                        val_loss += loss_function(predictions, target).item()
 
             val_loss /= len(val_loader)
             metrics = {
