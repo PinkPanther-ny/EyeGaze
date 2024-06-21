@@ -12,7 +12,7 @@ from infer_backend import initialize_backend
 # Image transformation pipeline
 from augmentation import val_aug as transform
 
-model_path = r"D:\2023\EyeGaze\gazenet.pt"
+model_path = r"saved_models_hist\93pixel_vit_with_120ep_head_25502data_107ep.trt"
 backend = initialize_backend(model_path)
 
 # Open camera 0
@@ -35,9 +35,12 @@ colormap_list = [eval(f'cv2.{i}') for i in dir(cv2) if i.startswith('COLORMAP')]
 current_colormap = random.choice(colormap_list)
 
 inference_times = []  # To store the last 10 inference times
+frame_times = []  # To store the last 10 frame times
 
 running = True
 while running:
+    loop_start_time = time.time()  # Start timer for the loop iteration
+
     ret, frame = cap.read()
     if not ret:
         print('Failed to capture frame')
@@ -46,10 +49,10 @@ while running:
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     input_tensor = transform(image=image)['image'].unsqueeze(0)
 
-    start_time = time.time()  # Start timer
+    start_time = time.time()  # Start timer for inference
     # Perform inference using the initialized backend
     prediction = backend.inference(input_tensor)
-    end_time = time.time()  # End timer
+    end_time = time.time()  # End timer for inference
     inference_time = (end_time - start_time) * 1000  # Convert to milliseconds
 
     # Append inference time to the list and trim if necessary
@@ -105,6 +108,20 @@ while running:
     font = pygame.font.SysFont('Arial', 30)
     text_surface = font.render(f'Avg Inference Time: {avg_inference_time:.2f} ms', True, (255, 255, 255))
     screen.blit(text_surface, (10, 10))
+
+    # Calculate FPS
+    loop_end_time = time.time()  # End timer for the loop iteration
+    frame_time = loop_end_time - loop_start_time
+    frame_times.append(frame_time)
+    if len(frame_times) > 10:
+        frame_times.pop(0)
+
+    avg_frame_time = sum(frame_times) / len(frame_times)
+    fps = 1 / avg_frame_time
+
+    # Display FPS on the screen
+    fps_surface = font.render(f'FPS: {fps:.2f}', True, (255, 255, 255))
+    screen.blit(fps_surface, (10, 50))
 
     pygame.display.flip()
 
