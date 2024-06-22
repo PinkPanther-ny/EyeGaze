@@ -1,23 +1,27 @@
-# Configuration flag to toggle Pygame drawing
-ENABLE_PYGAME_DRAWING = False
-
+import argparse
 import random
 import time
 import cv2
 import keyboard
 import numpy as np
-if ENABLE_PYGAME_DRAWING:
-    import pygame
 from scipy.stats import multivariate_normal
-
 from infer_backend import initialize_backend
 from camera import CameraCaptureThread
 from mouse_controller import MouseControllerThread
-
-# Image transformation pipeline
 from augmentation import val_aug as transform
 
-model_path = r"saved_models_hist\93pixel_vit_with_120ep_head_25502data_107ep.trt"
+# Command-line argument parsing
+parser = argparse.ArgumentParser(description="Gaze tracking application")
+parser.add_argument('-p', '--model_path', type=str, required=True, help='Path to the model file')
+parser.add_argument('-v', '--enable_pygame', action='store_true', help='Enable Pygame drawing')
+args = parser.parse_args()
+
+ENABLE_PYGAME_DRAWING = args.enable_pygame
+
+if ENABLE_PYGAME_DRAWING:
+    import pygame
+
+model_path = args.model_path
 backend = initialize_backend(model_path)
 
 camera_thread = CameraCaptureThread()
@@ -94,10 +98,8 @@ while running:
                 continue
 
             x, y = np.mgrid[x_min:x_max, y_min:y_max]
-
             pos = np.dstack((x, y))
             rv = multivariate_normal([gx, gy], [[multivariate_covariance, 0], [0, multivariate_covariance]])
-
             clipped_heatmap = rv.pdf(pos)
             heat_map_array[y_min:y_max, x_min:x_max] += clipped_heatmap.T  # Transposed to match shape
 

@@ -4,11 +4,11 @@ filtered_paths = [p for p in os.environ.get('PATH').split(os.pathsep) if 'NVIDIA
 filtered_paths.extend(additional_paths)
 os.environ['PATH'] = os.pathsep.join(filtered_paths)
 
+import argparse
 import torch
 import pycuda.autoinit
 import tensorrt as trt
 from vit import GazeNet
-
 from config import TARGET_SIZE
 
 def export_to_onnx(model, dummy_input, onnx_file_path):
@@ -61,9 +61,7 @@ def build_trt_engine(onnx_file_path, engine_file_path):
             f.write(engine)
         print(f"Model has been converted to TensorRT engine at {engine_file_path}")
 
-
-def convert_model(choice):
-    model_path = 'saved_models_hist/93pixel_vit_with_120ep_head_25502data_107ep.pth'
+def convert_model(model_path, choice):
     base_name = os.path.splitext(model_path)[0]
     onnx_file_path = f'{base_name}.onnx'
     trt_file_path = f'{base_name}.trt'
@@ -77,35 +75,22 @@ def convert_model(choice):
     # Create a dummy input for model tracing
     dummy_input = torch.rand((1, 3, TARGET_SIZE, TARGET_SIZE), dtype=torch.float32).to('cuda')
 
-    if choice == '1':
-        # Export the model to ONNX
+    if choice == 1:
         export_to_onnx(model, dummy_input, onnx_file_path)
-    elif choice == '2':
-        # Export the model to ONNX
+    elif choice == 2:
         export_to_onnx(model, dummy_input, onnx_file_path)
-        
-        # Convert the ONNX model to TensorRT
         build_trt_engine(onnx_file_path, trt_file_path)
-    elif choice == '3':
-        # Export the model to TorchScript
+    elif choice == 3:
         export_to_jit(model, torchscript_file_path)
-    elif choice == '4':
-        # Export the model to ONNX
+    elif choice == 4:
         export_to_onnx(model, dummy_input, onnx_file_path)
-
-        # Convert the ONNX model to TensorRT
         build_trt_engine(onnx_file_path, trt_file_path)
-
-        # Export the model to TorchScript
         export_to_jit(model, torchscript_file_path)
-
 
 if __name__ == '__main__':
-    print("Select conversion option:")
-    print("1: Convert to ONNX")
-    print("2: Convert to ONNX and TensorRT")
-    print("3: Convert to TorchScript")
-    print("4: Convert to ONNX, TensorRT, and TorchScript")
+    parser = argparse.ArgumentParser(description="Convert model to different formats")
+    parser.add_argument('-p', '--model_path', type=str, help='Path to the model file')
+    parser.add_argument('-m', '--mode', type=int, choices=[1, 2, 3, 4], default=4, help='Conversion option: 1 - ONNX, 2 - ONNX and TensorRT, 3 - TorchScript, 4 - ONNX, TensorRT, and TorchScript')
+    args = parser.parse_args()
 
-    choice = input("Enter your choice (1, 2, 3, or 4): ")
-    convert_model(choice)
+    convert_model(args.model_path, args.mode)
