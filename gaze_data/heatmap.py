@@ -1,6 +1,7 @@
 import os
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Set the screen resolution
 screen_width = 1920
@@ -26,7 +27,8 @@ for filename in os.listdir(image_dir):
 coordinates = np.array(coordinates)
 
 # Create a heatmap
-heatmap, xedges, yedges = np.histogram2d(coordinates[:, 0], coordinates[:, 1], bins=[screen_width // 10, screen_height // 10])
+heatmap, xedges, yedges = np.histogram2d(coordinates[:, 0], coordinates[:, 1],
+                                         bins=[screen_width // 10, screen_height // 10])
 heatmap = np.rot90(heatmap)
 heatmap = np.flipud(heatmap)
 

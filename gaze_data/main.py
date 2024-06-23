@@ -1,7 +1,7 @@
 import os
+import random
 import sys
 import time
-import random
 import tkinter as tk
 from threading import Thread
 
@@ -12,7 +12,6 @@ import shortuuid
 import win32con
 import win32gui
 from PIL import ImageTk, Image
-
 
 screen_width = 1920
 screen_height = 1080
@@ -31,8 +30,8 @@ def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
+        base_path = sys._MEIPASS # noqa
+    except Exception: # noqa
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
@@ -55,12 +54,12 @@ def get_mouse_loc():
 def convert_cv2_to_tkinter_image(cv2_img):
     cv2_img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
     pil_img = Image.fromarray(cv2_img_rgb).convert("RGBA")
-    
+
     # Create transparency
     alpha = 255  # transparency
     alpha_channel = Image.new('L', pil_img.size, alpha)
     pil_img.putalpha(alpha_channel)
-    
+
     tk_img = ImageTk.PhotoImage(image=pil_img)
     return tk_img
 
@@ -87,7 +86,7 @@ def capture():
 
 
 def exit_app():
-    os._exit(0)
+    os._exit(0)  # noqa
 
 
 def widget_follow_mouse(widget):
@@ -118,14 +117,14 @@ def update_frame_and_mouse():
     _, frame = camera.read()
     current_frame = frame
     current_mouse_loc = get_mouse_loc()
-    
+
     # Center crop the image to a square
     cropped_frame = center_crop_image(frame)
-    
+
     # Display the image on the canvas in the center of the grid
     tk_img = convert_cv2_to_tkinter_image(cropped_frame)
     c.itemconfig(image_item, image=tk_img)
-    
+
     # Schedule the next update
     root.after(5, update_frame_and_mouse)
 
@@ -135,6 +134,7 @@ if __name__ == '__main__':
     output_dir = 'images'
     os.makedirs(os.path.join(output_dir, 'train'), exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'val'), exist_ok=True)
+
 
     def create_grid(event=None):
         spacing = 100
@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     # Set the photo image on the canvas
     tk_img = None
-    image_item = c.create_image(screen_width//2, screen_height//2, anchor=tk.CENTER, image=tk_img)
+    image_item = c.create_image(screen_width // 2, screen_height // 2, anchor=tk.CENTER, image=tk_img)
 
     label = tk.Label(root, text=f'X', fg='blue', font=('helvetica', 16, 'bold'), justify=tk.CENTER)
     set_click_through(label.winfo_id())
