@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6,7"
 import torch
 import torch.distributed as dist
@@ -19,6 +20,7 @@ from vit import GazeNet
 
 from torch.cuda.amp import GradScaler, autocast  # 导入混合精度训练的相关模块
 
+
 def calculate_pixel_distance(avg_mse_loss):
     # Convert average MSE loss to Euclidean distance in normalized coordinates
     # Multiplying by 2 because the MSE is averaged over both x and y dimensions
@@ -33,10 +35,12 @@ def calculate_pixel_distance(avg_mse_loss):
 
     return avg_pixel_distance
 
+
 def gather_and_calculate_mean(val_loss, world_size):
     gathered_losses = [torch.zeros(1).to(DEVICE) for _ in range(world_size)]
     dist.all_gather(gathered_losses, val_loss)
     return sum(gathered_losses).item() / world_size
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -45,7 +49,8 @@ if __name__ == '__main__':
     parser.add_argument('-l', "--lr", default=1e-4, type=float, help="Initial learning rate")
     parser.add_argument('-n', "--log_name", default="EyeGaze", type=str, help="Current experiment name")
     parser.add_argument('-s', "--state_dict", default="", type=str, help="Path to the state dictionary to load")
-    parser.add_argument('-f', "--freeze_backbone", default=False, action='store_true', help="Whether to freeze the backbone")
+    parser.add_argument('-f', "--freeze_backbone", default=False, action='store_true',
+                        help="Whether to freeze the backbone")
     args = parser.parse_args()
 
     # Hyperparameters
@@ -151,7 +156,7 @@ if __name__ == '__main__':
                 pbar.set_postfix({key.lower().replace(' ', '_'): f'{value:.6f}' for key, value in metrics.items()})
 
         # Validation loop
-        if epoch%5 == 0 or epoch > 100:
+        if epoch % 5 == 0 or epoch > 100:
             model.eval()
             val_loss = torch.zeros(1).to(DEVICE)
             with torch.no_grad():
@@ -176,10 +181,11 @@ if __name__ == '__main__':
                     best_val_loss = mean_val_loss
                     best_val_epoch = epoch
                     print(f'\nNew best validation set on epoch {best_val_epoch}, '
-                        f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
+                          f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
                     torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'best.pth'))
 
-                print(f'Validation avg loss: {mean_val_loss:.4f} | {calculate_pixel_distance(mean_val_loss):.2f} pixels')
+                print(
+                    f'Validation avg loss: {mean_val_loss:.4f} | {calculate_pixel_distance(mean_val_loss):.2f} pixels')
                 print(f'Best validation set on epoch {best_val_epoch}, '
-                    f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
+                      f'Avg loss: {best_val_loss:.4f} | {calculate_pixel_distance(best_val_loss):.2f} pixels\n')
                 # torch.save(model.module.state_dict(), os.path.join(saved_models_dir, f'epoch_{epoch}.pth'))

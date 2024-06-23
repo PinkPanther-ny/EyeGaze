@@ -1,14 +1,16 @@
 import argparse
 import random
 import time
+
 import cv2
 import keyboard
 import numpy as np
 from scipy.stats import multivariate_normal
-from infer_backend import initialize_backend
-from camera import CameraCaptureThread
-from mouse_controller import MouseControllerThread
+
 from augmentation import val_aug as transform
+from camera import CameraCaptureThread
+from infer_backend import initialize_backend
+from mouse_controller import MouseControllerThread
 
 # Command-line argument parsing
 parser = argparse.ArgumentParser(description="Gaze tracking application")

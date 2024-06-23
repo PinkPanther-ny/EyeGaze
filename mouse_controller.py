@@ -1,5 +1,6 @@
 import threading
 import time
+
 import keyboard
 import numpy as np
 import pyautogui
@@ -21,7 +22,7 @@ class MouseControllerThread(threading.Thread):
                     if len(self.gaze_buffer) > 0:
                         avg_gaze = np.mean(np.array(self.gaze_buffer), axis=0)
                         pyautogui.moveTo(avg_gaze[0], avg_gaze[1], duration=self.duration)
-            time.sleep(0.001) # Avoid thread race condition
+            time.sleep(0.001)  # Avoid thread race condition
 
     def update_gaze(self, gaze_x, gaze_y):
         self.gaze_buffer.append((gaze_x, gaze_y))

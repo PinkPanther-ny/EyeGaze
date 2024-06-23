@@ -3,10 +3,12 @@ import torch.onnx
 import torchvision.models
 from torchvision.models import ResNet101_Weights
 
+
 def freeze_module(module, freeze=True):
     print(f"{'Freeze' if freeze else 'Unfreeze'}: {module}")
     for param in module.parameters():
         param.requires_grad = not freeze
+
 
 # Define the GazeNet model
 class GazeNet(nn.Module):
@@ -43,7 +45,6 @@ class GazeNet(nn.Module):
                 for j, c in enumerate(child.children(), 0):
                     if j < 16:
                         freeze_module(c, freeze=freeze)
-
 
 
 if __name__ == '__main__':

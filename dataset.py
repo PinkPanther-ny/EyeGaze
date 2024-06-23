@@ -1,6 +1,6 @@
-import cv2
 import os
 
+import cv2
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -13,7 +13,7 @@ class GazeDataset(Dataset):
         self.transform = transform
         # Read the list of files
         self.file_list = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
-        
+
         print(f"GazeDataset Init! {self.data_path} {len(self.file_list)}")
 
     def __len__(self):
