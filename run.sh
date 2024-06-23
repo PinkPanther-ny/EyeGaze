@@ -13,7 +13,7 @@ MODEL_DIR="saved_models"
 PRETRAIN_DIR="saved_models_pretrain"
 BEST_MODEL_NAME="best.pth"
 FIRST_RUN_MODEL_PATH="${PRETRAIN_DIR}/${FIRST_RUN_NAME}.pth"
-FINAL_MODEL_PATH="${MODEL_DIR}/${SECOND_RUN_NAME}.pth"
+FINAL_MODEL_PATH="${PRETRAIN_DIR}/${SECOND_RUN_NAME}.pth"
 
 # Train the model with frozen backbone
 torchrun --nproc_per_node=8 train.py -n $FIRST_RUN_NAME -b 512 -l 5e-3 --freeze_backbone
