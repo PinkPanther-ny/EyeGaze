@@ -33,7 +33,7 @@ heatmap = np.rot90(heatmap)
 heatmap = np.flipud(heatmap)
 
 # Plot the heatmap
-plt.imshow(heatmap, cmap='hot', interpolation='bilinear', extent=[0, screen_width, 0, screen_height])
+plt.imshow(heatmap, cmap='hot', interpolation='bilinear', extent=(0, screen_width, 0, screen_height))
 plt.colorbar(label='Frequency')
 plt.title('Heatmap of Gaze Points')
 plt.xlabel('Screen Width (pixels)')
