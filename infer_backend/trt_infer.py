@@ -1,5 +1,8 @@
 import os
-additional_paths = [r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib', r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\bin', r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\libnvvp']
+
+additional_paths = [r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\lib',
+                    r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\bin',
+                    r'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\libnvvp']
 filtered_paths = [p for p in os.environ.get('PATH').split(os.pathsep) if 'NVIDIA GPU Computing Toolkit' not in p]
 filtered_paths.extend(additional_paths)
 os.environ['PATH'] = os.pathsep.join(filtered_paths)
@@ -8,6 +11,7 @@ import numpy as np
 import pycuda.driver as cuda
 import pycuda.autoinit
 import tensorrt as trt
+
 
 class HostDeviceMem(object):
     def __init__(self, host_mem, device_mem):
@@ -19,6 +23,7 @@ class HostDeviceMem(object):
 
     def __repr__(self):
         return self.__str__()
+
 
 class TrtModel:
     def __init__(self, engine_path, max_batch_size=1, dtype=np.float32):
@@ -75,6 +80,7 @@ class TrtModel:
         out = [out.host.reshape(batch_size, -1) for out in self.outputs][0][0]
         return out
 
+
 # Optional: Direct execution testing
 if __name__ == "__main__":
     from augmentation import val_aug as transform
@@ -84,7 +90,7 @@ if __name__ == "__main__":
     batch_size = 1
     trt_engine_path = "gazenet.trt"  # Path to your TensorRT engine file
     model = TrtModel(trt_engine_path)
-    
+
     cap = cv2.VideoCapture(0)
     pure_infer_time = 0
     for i in range(5000):
