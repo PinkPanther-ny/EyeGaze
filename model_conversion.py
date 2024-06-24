@@ -24,7 +24,7 @@ def export_to_onnx(model, dummy_input, onnx_file_path):
         do_constant_folding=True,
         input_names=['input'],
         output_names=['output'],
-        dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
+        dynamic_axes=None
     )
     print(f"Model has been converted to ONNX at {onnx_file_path}")
 
