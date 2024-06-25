@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from augmentation import train_aug, val_aug
 from dataset import GazeDataset
-from vit import GazeNet
+from vit import GazeNetL as GazeNet
 
 from torch.cuda.amp import GradScaler, autocast  # 导入混合精度训练的相关模块
 
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', "--state_dict", default="", type=str, help="Path to the state dictionary to load")
     parser.add_argument('-f', "--freeze_backbone", default=False, action='store_true',
                         help="Whether to freeze the backbone")
+    parser.add_argument('-g', "--grad_accumulation_steps", default=1, type=int, help="Number of gradient accumulation steps")
     args = parser.parse_args()
 
     # Hyperparameters
@@ -59,6 +60,7 @@ if __name__ == '__main__':
     epochs = args.epoch
     state_dict_path = args.state_dict
     freeze_backbone = args.freeze_backbone
+    grad_accumulation_steps = args.grad_accumulation_steps
 
     # DDP backend initialization
     LOCAL_RANK = int(os.environ["LOCAL_RANK"])
@@ -74,10 +76,10 @@ if __name__ == '__main__':
     val_dataset = GazeDataset(data_path='images/val', transform=val_aug)
 
     train_sampler = DistributedSampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4)
 
     val_sampler = DistributedSampler(val_dataset)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=8, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, shuffle=False)
 
     # Model, optimizer, and loss function
     model = GazeNet()
@@ -124,22 +126,26 @@ if __name__ == '__main__':
             float_epoch_to_int = int((epoch + batch_idx / len(train_loader)) * 1e3)
 
             data, target = data.to(DEVICE), target.to(DEVICE)
-            optimizer.zero_grad()
+            if batch_idx % grad_accumulation_steps == 0:
+                optimizer.zero_grad()  # Clear gradients (only if not accumulating)
 
             with autocast():  # 使用autocast进行混合精度训练
                 predictions = model(data)
-                loss = loss_function(predictions, target)
+                loss = loss_function(predictions, target) / grad_accumulation_steps  # Normalize loss
 
             scaler.scale(loss).backward()  # 使用scaler.scale
-            scaler.step(optimizer)  # 使用scaler.step
-            scaler.update()  # 更新scaler
+
+            if (batch_idx + 1) % grad_accumulation_steps == 0:
+                scaler.step(optimizer)  # 使用scaler.step
+                scaler.update()  # 更新scaler
+                optimizer.zero_grad()  # Clear gradients for next accumulation
 
             scheduler.step(epoch + batch_idx / len(train_loader))
 
             if LOCAL_RANK == 0:
                 metrics = {
-                    'Train/Loss': loss.item(),
-                    'Train/Pixel dist': calculate_pixel_distance(loss.item()),
+                    'Train/Loss': loss.item() * grad_accumulation_steps,  # De-normalize loss for logging
+                    'Train/Pixel dist': calculate_pixel_distance(loss.item() * grad_accumulation_steps),
                     'Train/Learning Rate': scheduler.get_last_lr()[0]
                 }
 
