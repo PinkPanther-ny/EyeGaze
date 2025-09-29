@@ -3,6 +3,7 @@ import random
 import sys
 import time
 import tkinter as tk
+from ctypes import windll
 from threading import Thread
 
 import cv2
@@ -13,13 +14,26 @@ import win32con
 import win32gui
 from PIL import ImageTk, Image
 
-screen_width = 1920
-screen_height = 1080
+
+# Dynamically detect screen resolution (primary monitor)
+def _get_screen_size():
+    try:
+        return windll.user32.GetSystemMetrics(0), windll.user32.GetSystemMetrics(1)
+    except Exception:
+        # Fallback to a common default
+        return 1920, 1080
+
+
+screen_width, screen_height = _get_screen_size()
 take_photo_interval = 0.05
+update_interval_ms = 16  # ~60 FPS update loop
 
 _last_take_time = 0
 current_frame = None
 current_mouse_loc = None
+_capture_failures = 0
+_status_item = None
+CAMERA_INDEX = 0
 
 
 def get_random_id():
@@ -30,8 +44,8 @@ def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS # noqa
-    except Exception: # noqa
+        base_path = sys._MEIPASS  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - broad for PyInstaller
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
@@ -39,11 +53,48 @@ def resource_path(relative_path):
 
 def set_click_through(hwnd):
     try:
-        styles = win32con.WS_EX_LAYERED | win32con.WS_EX_TRANSPARENT
+        # Preserve existing extended styles and add click-through + layered
+        current_ex = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
+        styles = current_ex | win32con.WS_EX_LAYERED | win32con.WS_EX_TRANSPARENT
         win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, styles)
         win32gui.SetLayeredWindowAttributes(hwnd, 0, 255, win32con.LWA_ALPHA)
     except Exception as e:
         print(e)
+
+
+def _open_camera(index: int = 0):
+    """Open camera with a backend more reliable on Windows, fallback if needed."""
+    cap = cv2.VideoCapture(index, cv2.CAP_MSMF)
+    if not cap or not cap.isOpened():
+        cap = cv2.VideoCapture(index)
+    return cap
+
+
+def _warmup_camera(cap: cv2.VideoCapture, frames: int = 5, delay: float = 0.05) -> bool:
+    ok = cap is not None and cap.isOpened()
+    if not ok:
+        return False
+
+
+def _reconnect_camera(index: int) -> bool:
+    """Fully close and reopen the camera with a brief delay and warm-up."""
+    global camera
+    try:
+        if camera is not None:
+            try:
+                camera.release()
+            except Exception:
+                pass
+        camera = None
+    except Exception:
+        camera = None
+    # Let OS release device handle
+    time.sleep(0.3)
+    camera = _open_camera(index)
+    ok = camera is not None and camera.isOpened()
+    if not ok:
+        return False
+    return _warmup_camera(camera)
 
 
 def get_mouse_loc():
@@ -73,9 +124,12 @@ def save_current_frame():
         else:
             subdir = 'val'
 
-        filename = f"{output_dir}/{subdir}/{current_mouse_loc}_{get_random_id()}.jpg"
-        cv2.imwrite(filename, current_frame)
-        print(f"Saved: {filename}")
+        filename = os.path.join(output_dir, subdir, f"{current_mouse_loc}_{get_random_id()}.jpg")
+        ok = cv2.imwrite(filename, current_frame)
+        if ok:
+            print(f"Saved: {filename}")
+        else:
+            print(f"Failed to save: {filename}")
 
 
 def capture():
@@ -86,7 +140,18 @@ def capture():
 
 
 def exit_app():
-    os._exit(0)  # noqa
+    # Gracefully release resources and exit
+    try:
+        if 'camera' in globals() and camera is not None:
+            camera.release()
+    except Exception:
+        pass
+    try:
+        if 'root' in globals() and root is not None:
+            root.destroy()
+    except Exception:
+        pass
+    sys.exit(0)
 
 
 def widget_follow_mouse(widget):
@@ -112,25 +177,58 @@ def center_crop_image(cv2_img):
 
 
 def update_frame_and_mouse():
-    global current_frame, current_mouse_loc, tk_img
+    global current_frame, current_mouse_loc, tk_img, _capture_failures, camera
 
-    _, frame = camera.read()
+    ret, frame = camera.read()
+    if not ret or frame is None:
+        _capture_failures += 1
+        # Try to recover after several consecutive failures
+        if _capture_failures >= 3:
+            if _reconnect_camera(CAMERA_INDEX):
+                _capture_failures = 0
+            else:
+                # Keep status visible and try again next tick
+                pass
+        # Show reconnecting status
+        try:
+            if _status_item is not None:
+                c.itemconfig(_status_item, text='Reconnecting camera...')
+        except Exception:
+            pass
+        # Try again on next tick
+        root.after(update_interval_ms, update_frame_and_mouse)
+        return
+
+    _capture_failures = 0
+    # Clear reconnecting status
+    try:
+        if _status_item is not None:
+            c.itemconfig(_status_item, text='')
+    except Exception:
+        pass
     current_frame = frame
     current_mouse_loc = get_mouse_loc()
 
     # Center crop the image to a square
     cropped_frame = center_crop_image(frame)
 
-    # Display the image on the canvas in the center of the grid
+    # Display/update the image on the canvas
     tk_img = convert_cv2_to_tkinter_image(cropped_frame)
     c.itemconfig(image_item, image=tk_img)
+    # Reposition the image so that its center follows the mouse location
+    try:
+        mx, my = mouse.get_position()
+        c.coords(image_item, int(mx), int(my))
+    except Exception:
+        pass
 
     # Schedule the next update
-    root.after(5, update_frame_and_mouse)
+    root.after(update_interval_ms, update_frame_and_mouse)
 
 
 if __name__ == '__main__':
-    camera = cv2.VideoCapture(0)
+    camera = _open_camera(CAMERA_INDEX)
+    _warmup_camera(camera)
     output_dir = 'images'
     os.makedirs(os.path.join(output_dir, 'train'), exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'val'), exist_ok=True)
@@ -155,16 +253,27 @@ if __name__ == '__main__':
 
     root.wm_attributes("-topmost", True)
     root.title("EyeGaze")
-    root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
+    # Use detected screen size to size the window
+    root.geometry(f"{screen_width}x{screen_height}+0+0")
     root.config(bg='#000000')
-    ico = ImageTk.PhotoImage(Image.open(resource_path('ico.ico')))
-    root.iconphoto(False, ico)
+    # Resolve icon path relative to this file to avoid CWD issues
+    try:
+        script_dir = os.path.dirname(__file__)
+        ico_path = os.path.join(script_dir, 'ico.ico')
+        ico = ImageTk.PhotoImage(
+            Image.open(resource_path(ico_path) if os.path.exists(resource_path(ico_path)) else ico_path))
+        root.iconphoto(False, ico)
+    except Exception:
+        # Icon is optional; ignore failures
+        pass
     root.wm_attributes('-fullscreen', 'True')
     root.wm_attributes("-alpha", 0.85)
 
     c = tk.Canvas(root, bg='#333333')
     c.pack(fill=tk.BOTH, expand=True)
     c.bind('<Configure>', create_grid)
+    # Status text in top-left for debug/reconnect messages
+    _status_item = c.create_text(10, 10, anchor='nw', fill='yellow', text='')
 
     # Set the photo image on the canvas
     tk_img = None
@@ -173,7 +282,7 @@ if __name__ == '__main__':
     label = tk.Label(root, text=f'X', fg='blue', font=('helvetica', 16, 'bold'), justify=tk.CENTER)
     set_click_through(label.winfo_id())
 
-    Thread(target=widget_follow_mouse, args=(label,)).start()
+    Thread(target=widget_follow_mouse, args=(label,), daemon=True).start()
 
     # Start the update loop
     root.after(0, update_frame_and_mouse)
@@ -181,4 +290,10 @@ if __name__ == '__main__':
     keyboard.add_hotkey('SPACE', capture)
     keyboard.add_hotkey('ESC', exit_app)
 
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        try:
+            camera.release()
+        except Exception:
+            pass
