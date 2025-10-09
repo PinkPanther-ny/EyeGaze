@@ -1,5 +1,5 @@
-import os
 import pathlib
+
 
 def initialize_backend(model_name):
     """

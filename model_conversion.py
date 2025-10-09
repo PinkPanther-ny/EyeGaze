@@ -11,7 +11,7 @@ import argparse
 import torch
 import tensorrt as trt
 from vit import GazeNet
-from config import TARGET_SIZE
+from dataset import TARGET_SIZE
 
 
 def export_to_onnx(model, dummy_input, onnx_file_path):

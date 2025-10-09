@@ -9,7 +9,7 @@ os.environ['PATH'] = os.pathsep.join(filtered_paths)
 
 import numpy as np
 import pycuda.driver as cuda
-import pycuda.autoinit
+import pycuda.autoinit # noqa
 import tensorrt as trt
 
 

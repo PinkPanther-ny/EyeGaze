@@ -1,7 +1,8 @@
 import os
-from PIL import Image
+
 import numpy as np
 import torch
+from PIL import Image
 from torchvision import transforms
 from tqdm import tqdm
 

@@ -1,7 +1,9 @@
 import os
+
 import cv2
 import numpy as np
 from tqdm import tqdm
+
 
 def calculate_mean_std(image_path):
     image = cv2.imread(image_path, cv2.IMREAD_COLOR)
@@ -12,6 +14,7 @@ def calculate_mean_std(image_path):
         return mean, std
     return None, None
 
+
 def get_all_image_paths(directory):
     image_paths = []
     for root, _, files in os.walk(directory):
@@ -19,6 +22,7 @@ def get_all_image_paths(directory):
             if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
                 image_paths.append(os.path.join(root, file))
     return image_paths
+
 
 def main():
     image_dir = 'images'
@@ -48,6 +52,7 @@ def main():
 
     print(f"Overall Mean: {overall_mean}")
     print(f"Overall Std: {overall_std}")
+
 
 # Overall Mean: [0.45610908 0.45873095 0.48192639]
 # Overall Std: [0.25258335 0.241994   0.23515741]
